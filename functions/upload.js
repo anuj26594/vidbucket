@@ -4,11 +4,10 @@ export async function onRequestPost(context) {
     const file = form.get("file");
     const password = form.get("password");
 
-    if (!file) return new Response("No file", { status: 400 });
+    if (!file) return Response.json({ error: "No file" }, { status: 400 });
 
-    // Simple password check
-    const correctPassword = context.env.UPLOAD_PASSWORD;
-    if (password !== correctPassword) {
+    // Password check
+    if (password !== context.env.UPLOAD_PASSWORD) {
       return Response.json({ error: "Invalid password" }, { status: 403 });
     }
 
@@ -19,23 +18,35 @@ export async function onRequestPost(context) {
     await context.env.VIDEOS_BUCKET.put(key, arrayBuffer);
     const videoUrl = `https://videos.vidbucket.co.uk/${key}`;
 
-    // Generate thumbnail
+    // Call thumbnail function
     const thumbReq = await fetch(context.env.PUBLIC_BASE_URL + "/thumbnail", {
       method: "POST",
-      body: JSON.stringify({ videoUrl, id }),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ videoUrl, id })
     });
 
-    const { thumbnail_url } = await thumbReq.json();
+    let thumbnail_url = null;
+    try {
+      const thumbJson = await thumbReq.json();
+      thumbnail_url = thumbJson.thumbnail_url || null;
+    } catch {
+      thumbnail_url = null;
+    }
 
-    // Store in DB
+    // Save metadata
     await context.env.DB.prepare(
       "INSERT INTO videos (id, video_url, thumbnail_url, created_at) VALUES (?, ?, ?, ?)"
-    )
-      .bind(id, videoUrl, thumbnail_url, new Date().toISOString())
-      .run();
+    ).bind(id, videoUrl, thumbnail_url, new Date().toISOString()).run();
 
-    return Response.json({ url: videoUrl, thumbnail: thumbnail_url });
+    return Response.json({
+      url: videoUrl,
+      thumbnail: thumbnail_url
+    });
+
   } catch (err) {
-    return new Response("Upload failed: " + err.message, { status: 500 });
+    return Response.json(
+      { error: "Upload failed", details: err.message },
+      { status: 500 }
+    );
   }
 }

@@ -33,6 +33,10 @@ async function upload() {
     return;
   }
 
+  if (!data.thumbnail) {
+    resultDiv.innerHTML += `<div class='text-warning mt-2'>Thumbnail unavailable</div>`;
+  }
+
   // SUCCESS
   resultDiv.innerHTML = `
     <p class="text-success fw-bold">✔ Uploaded Successfully!</p>
