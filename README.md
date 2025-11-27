@@ -18,4 +18,4 @@ Upload videos → get a shareable `.mp4` link.
 4. Deploy this repo through Cloudflare Pages.
 5. Visit your site → upload video → get `.mp4` link.
 
-Enjoy for free!
+Enjoy!
