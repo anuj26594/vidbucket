@@ -1,59 +1,30 @@
 async function generateThumbnail(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
+  return new Promise((resolve) => {
     const video = document.createElement("video");
-
-    video.preload = "metadata";
-    video.src = url;
-    video.muted = true;
-    video.playsInline = true;
+    video.src = URL.createObjectURL(file);
     video.crossOrigin = "anonymous";
+    video.muted = true;
 
-    video.onloadedmetadata = () => {
-      // Auto-pick 2 seconds, but stay within duration
-      const targetTime = Math.min(2, video.duration - 0.1);
-      video.currentTime = targetTime;
-    };
+    video.addEventListener("loadeddata", () => {
+      // Seek to 1 second or first frame
+      video.currentTime = Math.min(1, video.duration / 2);
+    });
 
-    video.onerror = () => {
-      reject("Error loading video.");
-    };
-
-    video.onseeked = () => {
-      const videoWidth = video.videoWidth;
-      const videoHeight = video.videoHeight;
-
-      if (!videoWidth || !videoHeight) {
-        reject("Video dimension error");
-        return;
-      }
-
-      // Maintain aspect ratio, max width 480
-      const maxWidth = 480;
-      let thumbWidth = videoWidth;
-      let thumbHeight = videoHeight;
-
-      if (videoWidth > maxWidth) {
-        const scale = maxWidth / videoWidth;
-        thumbWidth = maxWidth;
-        thumbHeight = Math.round(videoHeight * scale);
-      }
-
+    video.addEventListener("seeked", () => {
       const canvas = document.createElement("canvas");
-      canvas.width = thumbWidth;
-      canvas.height = thumbHeight;
-
+      canvas.width = 320;
+      canvas.height = 180;
       const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0, thumbWidth, thumbHeight);
+      ctx.drawImage(video, 0, 0, 320, 180);
 
       canvas.toBlob(
         (blob) => {
           resolve(blob);
         },
         "image/jpeg",
-        0.85
+        0.8
       );
-    };
+    });
   });
 }
 
