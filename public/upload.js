@@ -3,7 +3,10 @@ async function upload() {
   const password = document.getElementById("passwordInput").value;
   const resultDiv = document.getElementById("result");
 
-  if (!file) return alert("Please select a file");
+  if (!file) {
+    resultDiv.innerHTML = `<div class="text-danger">Please select a video file.</div>`;
+    return;
+  }
 
   resultDiv.innerHTML = `<div class="text-warning">Uploading... please wait.</div>`;
 
@@ -11,16 +14,28 @@ async function upload() {
   formData.append("file", file);
   formData.append("password", password);
 
-  const res = await fetch("/upload", { method: "POST", body: formData });
+  const res = await fetch("/upload", {
+    method: "POST",
+    body: formData,
+  });
+
   const data = await res.json();
 
+  // WRONG PASSWORD
+  if (data.error === "Invalid password") {
+    resultDiv.innerHTML = `<div class="text-danger fw-bold">❌ Wrong password. Please try again.</div>`;
+    return;
+  }
+
+  // OTHER ERROR
   if (data.error) {
     resultDiv.innerHTML = `<div class="text-danger">${data.error}</div>`;
     return;
   }
 
+  // SUCCESS
   resultDiv.innerHTML = `
-    <p><strong>Uploaded Successfully!</strong></p>
+    <p class="text-success fw-bold">✔ Uploaded Successfully!</p>
     <a href="${data.url}" target="_blank">${data.url}</a>
     <br><br>
     <img src="${data.thumbnail}" class="thumb-img">
@@ -50,3 +65,9 @@ async function loadVideos() {
 }
 
 window.onload = loadVideos;
+
+// Auto-disable upload button when password is empty
+document.getElementById("passwordInput").addEventListener("input", function () {
+  const pwd = this.value.trim();
+  document.getElementById("uploadBtn").disabled = pwd.length === 0;
+});
