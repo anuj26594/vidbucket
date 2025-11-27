@@ -3,50 +3,40 @@ export async function onRequestPost(context) {
     const form = await context.request.formData();
     const file = form.get("file");
     const password = form.get("password");
+    const thumbnail = form.get("thumbnail");
 
-    if (!file) return Response.json({ error: "No file" }, { status: 400 });
+    if (!file) return Response.json({ error: "No video" }, { status: 400 });
 
-    // Password check
     if (password !== context.env.UPLOAD_PASSWORD) {
       return Response.json({ error: "Invalid password" }, { status: 403 });
     }
 
-    const arrayBuffer = await file.arrayBuffer();
     const id = crypto.randomUUID();
-    const key = `videos/${id}.mp4`;
 
-    await context.env.VIDEOS_BUCKET.put(key, arrayBuffer);
-    const videoUrl = `https://videos.vidbucket.co.uk/${key}`;
+    // Store video
+    const videoKey = `videos/${id}.mp4`;
+    await context.env.VIDEOS_BUCKET.put(videoKey, await file.arrayBuffer());
+    const videoUrl = `https://videos.vidbucket.co.uk/${videoKey}`;
 
-    // Call thumbnail function
-    const thumbReq = await fetch(context.env.PUBLIC_BASE_URL + "/thumbnail", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoUrl, id })
-    });
+    // Store thumbnail
+    const thumbKey = `thumbnails/${id}.jpg`;
+    await context.env.VIDEOS_BUCKET.put(thumbKey, await thumbnail.arrayBuffer());
+    const thumbUrl = `https://videos.vidbucket.co.uk/${thumbKey}`;
 
-    let thumbnail_url = null;
-    try {
-      const thumbJson = await thumbReq.json();
-      thumbnail_url = thumbJson.thumbnail_url || null;
-    } catch {
-      thumbnail_url = null;
-    }
-
-    // Save metadata
+    // Store in DB
     await context.env.DB.prepare(
       "INSERT INTO videos (id, video_url, thumbnail_url, created_at) VALUES (?, ?, ?, ?)"
-    ).bind(id, videoUrl, thumbnail_url, new Date().toISOString()).run();
+    ).bind(id, videoUrl, thumbUrl, new Date().toISOString()).run();
 
     return Response.json({
       url: videoUrl,
-      thumbnail: thumbnail_url
+      thumbnail: thumbUrl
     });
 
   } catch (err) {
-    return Response.json(
-      { error: "Upload failed", details: err.message },
-      { status: 500 }
-    );
+    return Response.json({
+      error: "Upload failed",
+      details: err.message
+    }, { status: 500 });
   }
 }
